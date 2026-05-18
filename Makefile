@@ -1,4 +1,4 @@
-.PHONY: up up-dev down logs rebuild migrate shell pb-admin dev dev-backend dev-frontend status clean help
+.PHONY: up down logs rebuild migrate shell pb-admin dev dev-backend dev-frontend status clean help
 
 # ── config ────────────────────────────────────────────────────────────────────
 PB_ADMIN_EMAIL ?= admin@towershare.local
@@ -6,23 +6,15 @@ PB_ADMIN_PASS  ?= towershare-dev
 
 # ── primary targets ───────────────────────────────────────────────────────────
 
-# Start everything (first-run safe: generates .env if missing, then boots)
+# Start PocketBase in Docker + Vite dev server locally
 up: .env
 	docker compose up -d
 	@echo ""
-	@echo "  PocketBase admin → http://localhost:8090/_/"
-	@echo "  API              → http://localhost:8090/api/"
-	@echo "  (frontend served from /pb/pb_public via PocketBase)"
-	@echo ""
-
-# Start everything including the Vite dev server (hot-reload frontend)
-up-dev: .env
-	docker compose --profile dev up -d
-	@echo ""
-	@echo "  Frontend (Vite) → http://localhost:5173"
+	@echo "  Frontend         → http://localhost:5173"
 	@echo "  PocketBase admin → http://localhost:8090/_/"
 	@echo "  API              → http://localhost:8090/api/"
 	@echo ""
+	yarn --cwd frontend dev
 
 # Tear down containers (keeps volumes)
 down:

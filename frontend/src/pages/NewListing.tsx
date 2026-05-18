@@ -27,7 +27,7 @@ const CATEGORY_LABEL: Record<PbCategory, string> = {
 
 export function NewListing() {
   const navigate = useNavigate()
-  const { createListing, building } = useAppData()
+  const { building, refreshListings } = useAppData()
   const { pbUser } = useAuth()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -40,45 +40,28 @@ export function NewListing() {
     e.preventDefault()
     setError(null)
 
-    if (pbUser) {
-      if (!building.id) {
-        setError('No tower found. Is the backend running?')
-        return
-      }
-      setSubmitting(true)
-      try {
-        const fd = new FormData()
-        fd.append('title', title.trim())
-        fd.append('description', description.trim())
-        fd.append('category', category)
-        fd.append('status', 'active')
-        fd.append('owner', pbUser.id)
-        fd.append('tower', building.id)
-        if (imageFile) fd.append('images', imageFile)
-        await pbCreateListing(fd)
-        navigate('/marketplace')
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to create listing')
-      } finally {
-        setSubmitting(false)
-      }
+    if (!building.id) {
+      setError('No tower found. Is the backend running?')
       return
     }
-
-    // No PocketBase session — write to local (demo) state only.
-    const photoUrl = imageFile
-      ? URL.createObjectURL(imageFile)
-      : `https://picsum.photos/seed/${encodeURIComponent(title.toLowerCase().replace(/\s+/g, '-') || 'item')}/600/400`
-
-    const id = createListing({
-      title: title.trim(),
-      description: description.trim(),
-      photoUrl,
-      category: 'furniture', // local seed uses item-type categories; default to furniture
-      estimatedM3: 0.3,
-      pickupBy: new Date(Date.now() + 14 * 86400000).toISOString(),
-    })
-    if (id) navigate(`/listings/${id}`)
+    setSubmitting(true)
+    try {
+      const fd = new FormData()
+      fd.append('title', title.trim())
+      fd.append('description', description.trim())
+      fd.append('category', category)
+      fd.append('status', 'active')
+      if (pbUser) fd.append('owner', pbUser.id)
+      fd.append('tower', building.id)
+      if (imageFile) fd.append('images', imageFile)
+      await pbCreateListing(fd)
+      refreshListings()
+      navigate('/marketplace')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create listing')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (

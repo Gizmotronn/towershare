@@ -55,6 +55,7 @@ type AppData = {
   getResident: (id: string | undefined) => Resident | undefined
 
   createListing: (input: NewListingInput) => string | null
+  refreshListings: () => void
   claimListing: (id: string) => void
   withdrawListing: (id: string) => void
 
@@ -86,11 +87,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       .catch(() => {/* backend not running — keep seed building */})
   }, [])
 
-  const [listings, setListings] = useState<FurnitureListing[]>(LISTINGS)
+  const [listings, setListings] = useState<FurnitureListing[]>([])
   const [pbOwnerNames, setPbOwnerNames] = useState<Map<string, string>>(new Map())
 
-  useEffect(() => {
-    if (!pbUser) return
+  const refreshListings = useCallback(() => {
     pbGetListings()
       .then((items) => {
         const ownerMap = new Map<string, string>()
@@ -103,7 +103,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         setListings(items.map(pbToFurnitureListing))
       })
       .catch(() => {})
-  }, [pbUser])
+  }, [])
+
+  useEffect(() => { refreshListings() }, [refreshListings])
   const [shares, setShares] = useState<EntitlementShare[]>(SHARES)
   const [collectionDay] = useState<CollectionDay>(COLLECTION_DAY)
   const [collectionItems, setCollectionItems] =
@@ -269,6 +271,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     currentUser,
     getResident,
     createListing,
+    refreshListings,
     claimListing,
     withdrawListing,
     offerShare,

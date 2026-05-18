@@ -1,6 +1,6 @@
 import type { FurnitureListing, ItemCategory, ListingStatus } from '../types'
 
-const PB_URL = (import.meta.env.VITE_PB_URL as string | undefined) ?? 'http://localhost:8090'
+const PB_URL = ''
 
 export type PbUser = {
   id: string

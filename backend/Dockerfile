@@ -34,4 +34,4 @@ COPY --from=frontend-builder /frontend/dist ./pb_public
 
 EXPOSE 8090
 
-ENTRYPOINT ["/pb/pocketbase", "serve", "--http=0.0.0.0:8090", "--dir=/pb/pb_data", "--publicDir=/pb/pb_public"]
+ENTRYPOINT ["/pb/pocketbase", "serve", "--http=0.0.0.0:8090", "--dir=/pb/pb_data"]
