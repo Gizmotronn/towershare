@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: towershare
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /api/health
+    disk:
+      name: pb-data
+      mountPath: /pb/pb_data
+      sizeGB: 1
+    envVars:
+      - key: APP_ENV
+        value: production

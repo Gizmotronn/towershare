@@ -1,11 +1,13 @@
 # ── Stage 1: Build React frontend ─────────────────────────────────────────────
 FROM node:20-alpine AS frontend-builder
 
+RUN corepack enable && corepack prepare yarn@stable --activate
+
 WORKDIR /frontend
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci
+COPY frontend/package.json frontend/yarn.lock ./
+RUN yarn install --frozen-lockfile
 COPY frontend/ .
-RUN npm run build
+RUN yarn build
 
 # ── Stage 2: Build Go backend ──────────────────────────────────────────────────
 FROM golang:1.22-alpine AS builder
