@@ -13,9 +13,9 @@ const (
 	stateSignupEmail     = "signup_email"
 	stateSignupPassword  = "signup_password"
 	stateSignupTower     = "signup_tower"
-	stateSignupApartment  = "signup_apartment"
-	stateSignupCreateApt  = "signup_create_apt"
-	stateSignupPasskey    = "signup_passkey"
+	stateSignupApartment = "signup_apartment"
+	stateSignupCreateApt = "signup_create_apt"
+	stateSignupPasskey   = "signup_passkey"
 	stateLoginEmail      = "login_email"
 	stateLoginPassword   = "login_password"
 	statePostType        = "post_type"
@@ -36,12 +36,6 @@ var sessions = struct {
 	sync.RWMutex
 	m map[string]*session
 }{m: make(map[string]*session)}
-
-func getSession(from string) *session {
-	sessions.RLock()
-	defer sessions.RUnlock()
-	return sessions.m[from]
-}
 
 func getOrCreate(from string) *session {
 	sessions.Lock()

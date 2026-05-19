@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useAppData } from '../context/AppDataContext'
@@ -8,7 +8,7 @@ import { Input } from '../components/ui/Input'
 import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Select } from '../components/ui/Select'
-import { pbGetTowers, pbCreateListing, type PbTower } from '../lib/pb'
+import { pbCreateListing } from '../lib/pb'
 import {
   Card,
   CardContent,
@@ -27,13 +27,12 @@ const CATEGORY_LABEL: Record<PbCategory, string> = {
 
 export function NewListing() {
   const navigate = useNavigate()
-  const { createListing } = useAppData()
+  const { createListing, building } = useAppData()
   const { pbUser } = useAuth()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<PbCategory>('give')
   const [imageFile, setImageFile] = useState<File | null>(null)
-  const [towerId, setTowerId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,7 +41,7 @@ export function NewListing() {
     setError(null)
 
     if (pbUser) {
-      if (!towerId) {
+      if (!building.id) {
         setError('No tower found. Is the backend running?')
         return
       }
@@ -54,7 +53,7 @@ export function NewListing() {
         fd.append('category', category)
         fd.append('status', 'active')
         fd.append('owner', pbUser.id)
-        fd.append('tower', towerId)
+        fd.append('tower', building.id)
         if (imageFile) fd.append('images', imageFile)
         await pbCreateListing(fd)
         navigate('/marketplace')

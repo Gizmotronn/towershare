@@ -121,7 +121,7 @@ func handleSignup(app *pocketbase.PocketBase) echo.HandlerFunc {
 				"Email": email, "DisplayName": displayName,
 			})
 		}
-		record.SetVerified(true)
+		_ = record.SetVerified(true)
 		_ = app.Dao().SaveRecord(record)
 
 		setAuthCookie(c, record.Id)
@@ -139,11 +139,11 @@ func handleLogout(c echo.Context) error {
 // ── Feed ───────────────────────────────────────────────────────────────────
 
 type listingView struct {
-	Title      string
-	Category   string
-	TowerName  string
-	ImageURL   string
-	TimeAgo    string
+	Title     string
+	Category  string
+	TowerName string
+	ImageURL  string
+	TimeAgo   string
 }
 
 func handleFeed(app *pocketbase.PocketBase) echo.HandlerFunc {

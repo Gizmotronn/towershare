@@ -71,7 +71,7 @@ func dispatchIdle(app *pocketbase.PocketBase, msg incomingMessage, s *session) *
 
 	if s.User != nil {
 		return replyWith(
-			fmt.Sprintf("I didn't catch that. What would you like to do?"),
+			"I didn't catch that. What would you like to do?",
 			act("Browse listings 📋", "listings"),
 			act("Post something ✏️", "post"),
 			act("Help", "help"),
@@ -288,9 +288,9 @@ func onSignupPasskey(app *pocketbase.PocketBase, from, body string, s *session) 
 
 func finaliseSignup(app *pocketbase.PocketBase, from string, s *session) *BotReply {
 	// Capture before clearing pending.
-	name  := s.Pending["name"]
+	name := s.Pending["name"]
 	email := s.Pending["email"]
-	pw    := s.Pending["password"]
+	pw := s.Pending["password"]
 	aptID := s.Pending["apartment_id"]
 
 	usersCol, err := app.Dao().FindCollectionByNameOrId("users")
@@ -319,7 +319,9 @@ func finaliseSignup(app *pocketbase.PocketBase, from string, s *session) *BotRep
 		return reply("Sign up failed: " + err.Error())
 	}
 
-	record.SetVerified(true)
+	if err := record.SetVerified(true); err != nil {
+		return reply("Couldn't verify account: " + err.Error())
+	}
 	if err := app.Dao().SaveRecord(record); err != nil {
 		return reply("Couldn't verify account: " + err.Error())
 	}
