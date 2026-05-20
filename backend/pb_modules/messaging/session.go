@@ -6,11 +6,30 @@ import (
 	"github.com/pocketbase/pocketbase/models"
 )
 
-// session holds in-memory auth state per "from" address (phone number / simulator ID).
-// This is intentionally simple — fine for local dev and single-instance production.
-// For multi-instance deployments, replace with a Redis-backed store.
+// Conversation states for the onboarding and posting flows.
+const (
+	stateIdle            = ""
+	stateSignupName      = "signup_name"
+	stateSignupEmail     = "signup_email"
+	stateSignupPassword  = "signup_password"
+	stateSignupTower     = "signup_tower"
+	stateSignupApartment  = "signup_apartment"
+	stateSignupCreateApt  = "signup_create_apt"
+	stateSignupPasskey    = "signup_passkey"
+	stateLoginEmail      = "login_email"
+	stateLoginPassword   = "login_password"
+	statePostType        = "post_type"
+	statePostTitle       = "post_title"
+)
+
 type session struct {
-	User *models.Record
+	User    *models.Record
+	State   string
+	Pending map[string]string // holds in-progress data across state transitions
+}
+
+func newSession() *session {
+	return &session{Pending: make(map[string]string)}
 }
 
 var sessions = struct {
@@ -24,14 +43,19 @@ func getSession(from string) *session {
 	return sessions.m[from]
 }
 
-func setSession(from string, s *session) {
+func getOrCreate(from string) *session {
 	sessions.Lock()
 	defer sessions.Unlock()
+	if s, ok := sessions.m[from]; ok {
+		return s
+	}
+	s := newSession()
 	sessions.m[from] = s
+	return s
 }
 
 func clearSession(from string) {
 	sessions.Lock()
 	defer sessions.Unlock()
-	delete(sessions.m, from)
+	sessions.m[from] = newSession()
 }

@@ -49,9 +49,13 @@ pb-admin:
 dev-backend:
 	cd backend && go run . serve --http=0.0.0.0:8090
 
-# Open the chat simulator (served by PocketBase at /simulator)
+# Open the browser chat simulator (requires PocketBase running)
 chat:
 	open http://localhost:8090/simulator 2>/dev/null || xdg-open http://localhost:8090/simulator
+
+# Terminal (TUI) alternative
+chat-tui:
+	cd tools/simulator && go run . --url=http://localhost:8090
 
 # Quick curl to send a bot message from the terminal
 # Usage: make send MSG="towers"

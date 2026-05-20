@@ -1,8 +1,6 @@
-// Package ui serves the TowerShare web app at /app.
 package ui
 
 import (
-	_ "embed"
 	"net/http"
 
 	"github.com/labstack/echo/v5"
@@ -10,14 +8,20 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-//go:embed app.html
-var appHTML []byte
-
 func Register(app *pocketbase.PocketBase) {
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
-		e.Router.GET("/app", func(c echo.Context) error {
-			return c.HTMLBlob(http.StatusOK, appHTML)
+		g := e.Router.Group("/app")
+		g.GET("", func(c echo.Context) error {
+			return c.Redirect(http.StatusFound, "/app/feed")
 		})
+		g.GET("/login", handleLogin(app))
+		g.POST("/login", handleLogin(app))
+		g.GET("/signup", handleSignup(app))
+		g.POST("/signup", handleSignup(app))
+		g.GET("/logout", handleLogout)
+		g.GET("/feed", handleFeed(app))
+		g.GET("/listings/new", handleNewListing(app))
+		g.POST("/listings/new", handleNewListing(app))
 		return nil
 	})
 }
