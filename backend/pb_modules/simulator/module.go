@@ -1,6 +1,5 @@
-// Package simulator serves a browser-based chat UI at /simulator.
-// The entire page — HTML, CSS and JS — is defined as Go string constants.
-// Only active when APP_ENV != "production".
+// Package simulator serves a browser chat UI at /simulator.
+// All markup, styles, and scripts are Go string constants — no .html files.
 package simulator
 
 import (
@@ -20,167 +19,275 @@ func Register(app *pocketbase.PocketBase) {
 	})
 }
 
-// page is the complete chat simulator — HTML structure, CSS styles, and JS
-// logic — defined as a Go string constant. No .html files anywhere.
-const page = doctype + styles + body + scripts
+const page = head + body + script
 
-const doctype = `<!DOCTYPE html>
+// ── head ──────────────────────────────────────────────────────────────────
+
+const head = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>TowerShare — Chat</title>
-`
-
-const styles = `<style>
+<title>TowerShare</title>
+<style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0a0a0a;--surface:#141414;--surface2:#1e1e1e;--border:#252525;
-  --accent:#00b4d8;--accent-dim:rgba(0,180,216,.12);
-  --text:#f2f2f7;--muted:#636366;--sent-bg:#00b4d8;--recv-bg:#1c1c1e;
-  --green:#34c759;--red:#ff3b30;--orange:#ff9500;
-  --safe-bottom:env(safe-area-inset-bottom,0px);
-}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,sans-serif;
-  font-size:16px;-webkit-font-smoothing:antialiased}
 
-/* Shell */
-#shell{display:flex;flex-direction:column;height:100vh;max-width:480px;
-  margin:0 auto;background:var(--bg);position:relative;
-  border-left:1px solid var(--border);border-right:1px solid var(--border)}
+:root {
+  --bg:       #0a0a0a;
+  --surface:  #161616;
+  --surface2: #1e1e1e;
+  --border:   #262626;
+  --text:     #f2f2f7;
+  --muted:    #636366;
+  --accent:   #00b4d8;
+  --adim:     rgba(0,180,216,.1);
+  --sent:     #00b4d8;
+  --recv:     #1c1c1e;
+  --green:    #34c759;
+}
 
-/* Header */
-#header{
-  display:flex;align-items:center;gap:10px;
-  padding:12px 16px 10px;
-  padding-top:calc(12px + env(safe-area-inset-top,0px));
-  background:rgba(10,10,10,.85);
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  border-bottom:1px solid var(--border);flex-shrink:0;
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
 }
-.avatar{width:36px;height:36px;border-radius:50%;flex-shrink:0;
-  background:linear-gradient(135deg,var(--accent),#0077b6);
-  display:flex;align-items:center;justify-content:center;font-size:18px}
-.hdr-info{flex:1;min-width:0}
-.hdr-name{font-weight:600;font-size:15px;color:var(--text)}
-.hdr-status{font-size:12px;color:var(--green);display:flex;align-items:center;gap:4px}
-.hdr-status::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0}
-.channel-pills{display:flex;gap:6px;flex-shrink:0}
-.pill{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500;
-  border:1px solid var(--border);color:var(--muted);cursor:pointer;background:transparent;
-  transition:all .15s;white-space:nowrap}
-.pill.active{background:var(--accent);border-color:var(--accent);color:#fff}
 
-/* Messages */
-#messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 16px;
-  display:flex;flex-direction:column;gap:2px;scroll-behavior:smooth}
-#messages::-webkit-scrollbar{width:0}
+/* ── Shell ── */
+#shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  border-inline: 1px solid var(--border);
+}
 
-/* Bubble rows */
-.row{display:flex;flex-direction:column;margin-bottom:8px}
-.row.sent{align-items:flex-end}
-.row.recv{align-items:flex-start}
-.sender{font-size:11px;color:var(--muted);margin-bottom:3px;padding:0 4px}
+/* ── Header ── */
+#hdr {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  background: rgba(10,10,10,.9);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border);
+}
+.avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00b4d8, #0077b6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.hdr-text { flex: 1; min-width: 0; }
+.hdr-name { font-weight: 600; font-size: 15px; }
+.hdr-sub  { font-size: 12px; color: var(--green); display: flex; align-items: center; gap: 4px; }
+.hdr-sub::before {
+  content: ''; width: 6px; height: 6px;
+  border-radius: 50%; background: var(--green);
+}
+.channels { display: flex; gap: 5px; }
+.ch {
+  padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 500;
+  border: 1px solid var(--border); color: var(--muted);
+  background: transparent; cursor: pointer; transition: all .15s;
+}
+.ch.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-/* Bubbles */
-.bubble{
-  max-width:78%;padding:9px 13px;
-  font-size:15px;line-height:1.45;
-  white-space:pre-wrap;word-break:break-word;
+/* ── Messages ── */
+#msgs {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 14px 6px;
+  display: flex;
+  flex-direction: column;
+  scroll-behavior: smooth;
 }
-.sent .bubble{
-  background:var(--sent-bg);color:#fff;
-  border-radius:18px 18px 4px 18px;
-}
-.recv .bubble{
-  background:var(--recv-bg);color:var(--text);
-  border-radius:18px 18px 18px 4px;
-}
-.bubble-time{font-size:10px;color:var(--muted);margin-top:3px;padding:0 4px}
+#msgs::-webkit-scrollbar { width: 0; }
 
-/* Action chips */
-.actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:6px;padding:0 2px}
-.chip{
-  padding:7px 14px;border-radius:18px;
-  border:1.5px solid var(--accent);background:var(--accent-dim);
-  color:var(--accent);font-size:13px;font-weight:500;cursor:pointer;
-  transition:background .12s,transform .1s,opacity .2s;
-  white-space:nowrap;
+/* ── Rows ── */
+.row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 3px;
 }
-.chip:hover{background:rgba(0,180,216,.22)}
-.chip:active{transform:scale(.96)}
-.chip.used{opacity:.35;pointer-events:none;border-color:var(--border);color:var(--muted);background:transparent}
+.row.sent  { align-items: flex-end;   margin-bottom: 8px; }
+.row.recv  { align-items: flex-start; }
 
-/* Typing indicator */
-#typing{display:none;align-items:flex-start;gap:0;margin-bottom:8px;padding:0 2px}
-#typing .bubble{padding:10px 14px;display:flex;gap:5px;align-items:center}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);
-  animation:bounce 1.2s infinite ease-in-out}
-.dot:nth-child(2){animation-delay:.2s}
-.dot:nth-child(3){animation-delay:.4s}
-@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+.meta { font-size: 11px; color: var(--muted); padding: 0 4px; margin-bottom: 3px; }
+.time { font-size: 10px; color: var(--muted); padding: 2px 4px 0; }
 
-/* Input area */
-#composer{
-  padding:10px 12px;
-  padding-bottom:calc(10px + var(--safe-bottom));
-  background:rgba(10,10,10,.9);
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  border-top:1px solid var(--border);
-  display:flex;align-items:flex-end;gap:8px;flex-shrink:0;
+/* ── Bubbles ── */
+.bub {
+  max-width: 78%;
+  padding: 9px 13px;
+  font-size: 15px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
-#input{
-  flex:1;background:var(--surface2);border:1px solid var(--border);
-  border-radius:20px;padding:9px 15px;color:var(--text);
-  font-family:inherit;font-size:15px;outline:none;
-  max-height:120px;overflow-y:auto;resize:none;
-  line-height:1.4;
-  transition:border-color .15s;
+.sent .bub {
+  background: var(--sent);
+  color: #fff;
+  border-radius: 18px 18px 4px 18px;
 }
-#input:focus{border-color:var(--accent)}
-#input::placeholder{color:var(--muted)}
-#send{
-  width:36px;height:36px;border-radius:50%;
-  background:var(--accent);border:none;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;transition:opacity .15s;
+.recv .bub {
+  background: var(--recv);
+  color: var(--text);
+  border-radius: 18px 18px 18px 4px;
 }
-#send:disabled{opacity:.35;cursor:default}
-#send svg{fill:#fff;width:16px;height:16px}
+
+/* ── Option bubbles ── */
+/* Options are grouped below a bot message. Each is its own tappable bubble. */
+.opts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+.opt {
+  max-width: 82%;
+  padding: 9px 13px;
+  border-radius: 18px 18px 18px 4px;
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  background: var(--adim);
+  font-size: 15px;
+  line-height: 1.4;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  transition: background .12s, transform .08s, opacity .2s, border-color .15s;
+  user-select: none;
+}
+.opt:hover  { background: rgba(0,180,216,.18); }
+.opt:active { transform: scale(.98); }
+.opt .arr   { opacity: .6; flex-shrink: 0; font-size: 14px; }
+
+/* States after tapping */
+.opt.chosen {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.opt.chosen .arr { opacity: 1; }
+.opt.fade {
+  opacity: 0;
+  transform: translateX(-6px) scale(.97);
+  pointer-events: none;
+}
+
+/* ── Typing indicator ── */
+#typing {
+  display: none;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+#typing .bub {
+  padding: 10px 14px;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: bob 1.2s ease-in-out infinite;
+}
+.dot:nth-child(2) { animation-delay: .2s; }
+.dot:nth-child(3) { animation-delay: .4s; }
+@keyframes bob {
+  0%,60%,100% { transform: translateY(0); }
+  30%          { transform: translateY(-6px); }
+}
+
+/* ── Composer ── */
+#composer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  background: rgba(10,10,10,.9);
+  backdrop-filter: blur(24px);
+  border-top: 1px solid var(--border);
+}
+#inp {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 9px 15px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  outline: none;
+  resize: none;
+  max-height: 100px;
+  overflow-y: auto;
+  line-height: 1.4;
+  transition: border-color .15s;
+}
+#inp:focus        { border-color: var(--accent); }
+#inp::placeholder { color: var(--muted); }
+#sendbtn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity .15s;
+}
+#sendbtn:disabled { opacity: .35; cursor: default; }
+#sendbtn svg { fill: #fff; width: 16px; height: 16px; }
 </style>
+</head>
 `
 
-const body = `</head>
-<body>
+// ── body ──────────────────────────────────────────────────────────────────
+
+const body = `<body>
 <div id="shell">
 
-  <div id="header">
+  <div id="hdr">
     <div class="avatar">🏢</div>
-    <div class="hdr-info">
-      <div class="hdr-name">TowerShare Bot</div>
-      <div class="hdr-status" id="status-text">online</div>
+    <div class="hdr-text">
+      <div class="hdr-name">TowerShare</div>
+      <div class="hdr-sub" id="sub">online</div>
     </div>
-    <div class="channel-pills">
-      <button class="pill active" data-ch="whatsapp" onclick="setChannel(this)">WhatsApp</button>
-      <button class="pill" data-ch="imessage" onclick="setChannel(this)">iMessage</button>
-      <button class="pill" data-ch="sms" onclick="setChannel(this)">SMS</button>
+    <div class="channels">
+      <button class="ch on"  data-ch="whatsapp" onclick="setCh(this)">WhatsApp</button>
+      <button class="ch"     data-ch="imessage" onclick="setCh(this)">iMessage</button>
+      <button class="ch"     data-ch="sms"      onclick="setCh(this)">SMS</button>
     </div>
   </div>
 
-  <div id="messages">
+  <div id="msgs">
+    <!-- typing indicator always lives at the bottom of the list -->
     <div id="typing" class="row recv">
-      <div class="bubble recv">
-        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <div class="bub recv">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
       </div>
     </div>
   </div>
 
   <div id="composer">
-    <textarea id="input" rows="1" placeholder="Message"
-      oninput="autoResize(this)"
-      onkeydown="onKey(event)"></textarea>
-    <button id="send" onclick="submit()" disabled>
+    <textarea id="inp" rows="1" placeholder="Message"
+              oninput="grow(this)" onkeydown="onkey(event)"></textarea>
+    <button id="sendbtn" disabled onclick="submit()">
       <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
     </button>
   </div>
@@ -188,171 +295,180 @@ const body = `</head>
 </div>
 `
 
-const scripts = `<script>
+// ── script ────────────────────────────────────────────────────────────────
+
+const script = `<script>
 'use strict';
 
+const msgs   = document.getElementById('msgs');
+const inp    = document.getElementById('inp');
+const typing = document.getElementById('typing');
+
 let channel = 'whatsapp';
-let activeChipRow = null;
-let busy = false;
-const from = '+61400000001';
+let busy    = false;
+const from  = '+61400000001';
 
-const $ = id => document.getElementById(id);
-const msgs = $('messages');
-const inp = $('input');
+// ── utils ─────────────────────────────────────────────────────────────────
 
-// ── Utilities ──────────────────────────────────────────────────────────────
-
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          .replace(/\n/g,'<br>');
+}
 function now() {
-  return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 }
-
-function scrollBottom() {
-  msgs.scrollTo({top: msgs.scrollHeight, behavior: 'smooth'});
+function scroll() {
+  msgs.scrollTo({top: msgs.scrollHeight, behavior:'smooth'});
 }
-
-function setStatus(text, ok = true) {
-  const el = $('status-text');
-  el.textContent = text;
-  el.style.color = ok ? 'var(--green)' : 'var(--muted)';
+function setStatus(t, ok) {
+  const el = document.getElementById('sub');
+  el.textContent = t;
+  el.style.color = ok === false ? 'var(--muted)' : 'var(--green)';
 }
-
-function autoResize(el) {
+function grow(el) {
   el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-  $('send').disabled = !el.value.trim();
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+  document.getElementById('sendbtn').disabled = !el.value.trim();
 }
-
-function setChannel(btn) {
-  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
+function setCh(btn) {
+  document.querySelectorAll('.ch').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
   channel = btn.dataset.ch;
 }
 
-// ── Chip management ────────────────────────────────────────────────────────
+// ── option management ─────────────────────────────────────────────────────
 
-function retireChips() {
-  if (activeChipRow) {
-    activeChipRow.querySelectorAll('.chip').forEach(c => c.classList.add('used'));
-    activeChipRow = null;
-  }
+let liveOpts = null; // the current .opts container
+
+// Retire (fade out) the current live options group without selecting anything.
+function retireOpts() {
+  if (!liveOpts) return;
+  liveOpts.querySelectorAll('.opt').forEach(o => o.classList.add('fade'));
+  const old = liveOpts;
+  setTimeout(() => old.remove(), 220);
+  liveOpts = null;
 }
 
-// ── Bubble rendering ───────────────────────────────────────────────────────
+// Called when user taps an option bubble.
+function pickOpt(label, value, optEl, group) {
+  // Highlight chosen, fade the rest.
+  optEl.classList.add('chosen');
+  group.querySelectorAll('.opt').forEach(o => {
+    if (o !== optEl) o.classList.add('fade');
+  });
+  liveOpts = null;
 
-function appendSent(text) {
-  retireChips();
+  setTimeout(() => {
+    group.remove();
+    addSent(label);
+    call(value);
+  }, 180);
+}
+
+// Render a list of options as tappable bubbles below the last bot message.
+function addOpts(actions) {
+  retireOpts();
+
+  const group = document.createElement('div');
+  group.className = 'opts';
+
+  actions.forEach(a => {
+    const o = document.createElement('div');
+    o.className = 'opt';
+    o.innerHTML = '<span>' + esc(a.label) + '</span><span class="arr">›</span>';
+    o.onclick = () => pickOpt(a.label, a.value, o, group);
+    group.appendChild(o);
+  });
+
+  msgs.insertBefore(group, typing);
+  liveOpts = group;
+  scroll();
+}
+
+// ── bubble rendering ──────────────────────────────────────────────────────
+
+function addSent(text) {
+  retireOpts();
   const row = document.createElement('div');
   row.className = 'row sent';
   row.innerHTML =
-    '<div class="bubble">' + esc(text) + '</div>' +
-    '<div class="bubble-time">' + now() + '</div>';
-  msgs.insertBefore(row, $('typing'));
-  scrollBottom();
+    '<div class="bub">' + esc(text) + '</div>' +
+    '<div class="time">' + now() + '</div>';
+  msgs.insertBefore(row, typing);
+  scroll();
 }
 
-function appendRecv(text, actions) {
+function addRecv(text, actions) {
   const row = document.createElement('div');
   row.className = 'row recv';
   row.innerHTML =
-    '<div class="sender">Bot</div>' +
-    '<div class="bubble">' + esc(text) + '</div>' +
-    '<div class="bubble-time">' + now() + '</div>';
-  msgs.insertBefore(row, $('typing'));
+    '<div class="meta">Bot · ' + now() + '</div>' +
+    '<div class="bub">' + esc(text) + '</div>';
+  msgs.insertBefore(row, typing);
 
   if (actions && actions.length) {
-    const chips = document.createElement('div');
-    chips.className = 'actions';
-    actions.forEach(a => {
-      const btn = document.createElement('button');
-      btn.className = 'chip';
-      btn.textContent = a.label;
-      btn.onclick = () => chipClick(a.label, a.value);
-      chips.appendChild(btn);
-    });
-    msgs.insertBefore(chips, $('typing'));
-    activeChipRow = chips;
+    addOpts(actions);
   }
-  scrollBottom();
+  scroll();
 }
 
-function esc(str) {
-  return str
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/\n/g,'<br>');
-}
+// ── typing indicator ──────────────────────────────────────────────────────
 
-// ── Typing indicator ───────────────────────────────────────────────────────
+function showTyping()  { typing.style.display = 'flex'; scroll(); }
+function hideTyping()  { typing.style.display = 'none'; }
 
-function showTyping() {
-  $('typing').style.display = 'flex';
-  scrollBottom();
-}
-function hideTyping() {
-  $('typing').style.display = 'none';
-}
+// ── API ───────────────────────────────────────────────────────────────────
 
-// ── API call ───────────────────────────────────────────────────────────────
-
-async function callBot(body) {
+async function call(body) {
   if (busy) return;
   busy = true;
-  $('send').disabled = true;
+  document.getElementById('sendbtn').disabled = true;
   setStatus('typing…', false);
   showTyping();
 
   try {
-    const res = await fetch('/api/towershare/message', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({from, body, channel}),
+    const res  = await fetch('/api/towershare/message', {
+      method:  'POST',
+      headers: {'Content-Type':'application/json'},
+      body:    JSON.stringify({from, body, channel}),
     });
-    hideTyping();
     const data = await res.json();
-    if (data.reply)   appendRecv(data.reply, data.actions);
-    else if (data.error) appendRecv('⚠️  ' + data.error, []);
-    setStatus('online');
+    hideTyping();
+    if (data.reply) addRecv(data.reply, data.actions);
+    else if (data.error) addRecv('⚠️  ' + data.error, []);
+    setStatus('online', true);
   } catch (e) {
     hideTyping();
-    appendRecv('⚠️  Could not reach PocketBase. Is it running?', []);
+    addRecv('⚠️  Could not reach PocketBase. Is it running?\n\nmake up  or  make dev-backend', []);
     setStatus('offline', false);
-  } finally {
-    busy = false;
-    $('send').disabled = !inp.value.trim();
   }
+
+  busy = false;
+  document.getElementById('sendbtn').disabled = !inp.value.trim();
 }
 
-// ── User actions ───────────────────────────────────────────────────────────
+// ── user actions ──────────────────────────────────────────────────────────
 
 async function submit() {
   const text = inp.value.trim();
   if (!text || busy) return;
   inp.value = '';
   inp.style.height = 'auto';
-  $('send').disabled = true;
-  appendSent(text);
-  await callBot(text);
+  document.getElementById('sendbtn').disabled = true;
+  addSent(text);
+  await call(text);
   inp.focus();
 }
 
-async function chipClick(label, value) {
-  retireChips();
-  appendSent(label);
-  await callBot(value);
-  inp.focus();
+function onkey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
 }
 
-function onKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    submit();
-  }
-}
+// ── boot ──────────────────────────────────────────────────────────────────
 
-// ── Boot ───────────────────────────────────────────────────────────────────
-
-window.addEventListener('load', async () => {
+window.addEventListener('load', () => {
   inp.focus();
-  await callBot('');   // empty body → welcome message
+  call(''); // empty body → welcome message + first options
 });
 </script>
 </body></html>`
