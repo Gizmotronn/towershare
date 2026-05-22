@@ -17,6 +17,7 @@ export type FurnitureListing = {
   title: string
   description: string
   photoUrl: string
+  images?: string[]
   category: ItemCategory
   estimatedM3: number
   pickupBy: string

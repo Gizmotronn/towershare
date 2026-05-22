@@ -18,23 +18,29 @@ export function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
   const [personaId, setPersonaId] = useState<string>('r_amelia')
 
   useEffect(() => {
     if (currentUserId) navigate('/dashboard', { replace: true })
   }, [currentUserId, navigate])
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
-    const ok = login(email)
-    if (!ok) {
-      setError(
-        'No resident found with that email. Try the demo login below to switch personas.',
-      )
-      return
+    setLoading(true)
+    try {
+      const ok = await login(email, password)
+      if (!ok) {
+        setError(
+          'No account found with that email and password. Try the demo login below.',
+        )
+        return
+      }
+      navigate('/dashboard', { replace: true })
+    } finally {
+      setLoading(false)
     }
-    navigate('/dashboard', { replace: true })
   }
 
   const handlePersona = () => {
@@ -94,6 +100,7 @@ export function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
+                required
               />
             </div>
             <div className="space-y-1.5">
@@ -105,6 +112,7 @@ export function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
+                required
               />
             </div>
             {error && (
@@ -112,8 +120,8 @@ export function Login() {
                 {error}
               </p>
             )}
-            <Button type="submit" size="lg" className="w-full">
-              Sign in
+            <Button type="submit" size="lg" className="w-full" disabled={loading}>
+              {loading ? 'Signing in…' : 'Sign in'}
             </Button>
           </form>
 

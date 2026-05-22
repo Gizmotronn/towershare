@@ -2,12 +2,15 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AlertTriangle, ArrowLeft, Info } from 'lucide-react'
 import { useAppData } from '../context/AppDataContext'
+import { useAuth } from '../context/AuthContext'
+import { pb } from '../lib/pb'
 import { CATEGORY_LABEL, type ItemCategory } from '../types'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Select } from '../components/ui/Select'
+import { ImageUpload } from '../components/ImageUpload'
 import {
   Card,
   CardContent,
@@ -48,26 +51,74 @@ const RESTRICTIONS: Partial<Record<ItemCategory, { tone: 'warn' | 'info'; text: 
 export function NewListing() {
   const navigate = useNavigate()
   const { createListing } = useAppData()
+  const { isPbAuth, pbUser } = useAuth()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [photoUrl, setPhotoUrl] = useState('')
+  const [imageFiles, setImageFiles] = useState<File[]>([])
   const [category, setCategory] = useState<ItemCategory>('furniture')
   const [estimatedM3, setEstimatedM3] = useState('0.3')
   const [pickupBy, setPickupBy] = useState(
     new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
   )
+  const [submitting, setSubmitting] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    const id = createListing({
-      title: title.trim(),
-      description: description.trim(),
-      photoUrl: photoUrl.trim() || photoFor(title),
-      category,
-      estimatedM3: parseFloat(estimatedM3) || 0,
-      pickupBy: new Date(pickupBy).toISOString(),
-    })
-    if (id) navigate(`/listings/${id}`)
+    setUploadError(null)
+    setSubmitting(true)
+
+    try {
+      let photoUrl = photoFor(title)
+      let images: string[] = []
+
+      if (isPbAuth && pbUser && imageFiles.length > 0) {
+        // Upload to PocketBase and get back a real listing record
+        const formData = new FormData()
+        formData.append('title', title.trim())
+        formData.append('description', description.trim())
+        formData.append('category', category)
+        formData.append('status', 'available')
+        formData.append('owner', pbUser.id)
+        formData.append('estimated_m3', estimatedM3)
+        formData.append('pickup_by', new Date(pickupBy).toISOString())
+        imageFiles.forEach((f) => formData.append('images', f))
+
+        try {
+          const record = await pb.collection('listings').create(formData)
+          // Build PocketBase file URLs
+          images = (record.images as string[]).map(
+            (name) =>
+              `${pb.baseUrl}/api/files/${record.collectionId}/${record.id}/${name}`,
+          )
+          photoUrl = images[0] ?? photoUrl
+        } catch (err) {
+          console.warn('PocketBase listing creation failed, using local preview', err)
+          // Fall through to object URL fallback
+        }
+      }
+
+      // Object URL fallback for demo or if PB upload failed
+      if (images.length === 0 && imageFiles.length > 0) {
+        images = imageFiles.map((f) => URL.createObjectURL(f))
+        photoUrl = images[0]
+      }
+
+      const id = createListing({
+        title: title.trim(),
+        description: description.trim(),
+        photoUrl,
+        category,
+        estimatedM3: parseFloat(estimatedM3) || 0,
+        pickupBy: new Date(pickupBy).toISOString(),
+        images,
+      })
+      if (id) navigate(`/listings/${id}`)
+    } catch {
+      setUploadError('Something went wrong. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const reminders = RESTRICTIONS[category] ?? []
@@ -178,18 +229,31 @@ export function NewListing() {
                 />
               </div>
             </div>
+
             <div className="space-y-1.5">
-              <Label htmlFor="photo">Photo URL (optional)</Label>
-              <Input
-                id="photo"
-                placeholder="Leave blank to use a placeholder image"
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-              />
+              <Label>Photos</Label>
+              <ImageUpload files={imageFiles} onChange={setImageFiles} maxFiles={5} />
+              {isPbAuth && (
+                <p className="text-xs text-brand-700">
+                  Photos will be saved to your account.
+                </p>
+              )}
+              {!isPbAuth && imageFiles.length > 0 && (
+                <p className="text-xs text-slate-400">
+                  Demo mode — photos are previewed locally and not persisted.
+                </p>
+              )}
             </div>
+
+            {uploadError && (
+              <p className="text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-md px-3 py-2">
+                {uploadError}
+              </p>
+            )}
+
             <div className="flex gap-2 pt-2">
-              <Button type="submit" size="md">
-                Post item
+              <Button type="submit" size="md" disabled={submitting}>
+                {submitting ? 'Posting…' : 'Post item'}
               </Button>
               <Link
                 to="/marketplace"
