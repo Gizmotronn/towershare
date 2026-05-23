@@ -2,11 +2,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
 import type {
+  Building,
   CollectionDay,
   CollectionItem,
   EntitlementShare,
@@ -23,6 +25,7 @@ import {
   SHARES,
 } from '../lib/seed'
 import { uid } from '../lib/utils'
+import { pbGetTowers } from '../lib/pb'
 import { useAuth } from './AuthContext'
 
 type NewListingInput = {
@@ -41,7 +44,7 @@ type NewCollectionItemInput = {
 }
 
 type AppData = {
-  building: typeof BUILDING
+  building: Building
   residents: Resident[]
   listings: FurnitureListing[]
   shares: EntitlementShare[]
@@ -66,7 +69,22 @@ const AppDataContext = createContext<AppData | null>(null)
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const { currentUserId } = useAuth()
+  const [building, setBuilding] = useState<Building>(BUILDING)
   const [residents, setResidents] = useState<Resident[]>(RESIDENTS)
+
+  useEffect(() => {
+    pbGetTowers()
+      .then(([first]) => {
+        if (!first) return
+        setBuilding((prev) => ({
+          ...prev,
+          id: first.id,
+          name: first.name,
+          address: first.address,
+        }))
+      })
+      .catch(() => {/* backend not running — keep seed building */})
+  }, [])
   const [listings, setListings] = useState<FurnitureListing[]>(LISTINGS)
   const [shares, setShares] = useState<EntitlementShare[]>(SHARES)
   const [collectionDay] = useState<CollectionDay>(COLLECTION_DAY)
@@ -210,7 +228,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   )
 
   const value: AppData = {
-    building: BUILDING,
+    building,
     residents,
     listings,
     shares,

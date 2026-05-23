@@ -147,7 +147,7 @@ export function CollectionDay() {
                 manager to book a collection for you."
               </em>{' '}
               That's exactly how this pool works — {organizer?.name} books once
-              against {building.totalUnits} combined entitlements.
+              against {building.totalUnits ?? residents.length} combined entitlements.
             </p>
           </div>
           <ul className="grid sm:grid-cols-3 gap-3 text-xs text-slate-700">
@@ -335,7 +335,7 @@ export function CollectionDay() {
       <Card>
         <CardContent className="text-xs text-slate-500 leading-relaxed">
           <strong className="text-slate-700">How the pool works.</strong> Each
-          of the {building.totalUnits} apartments at {building.name} gets a
+          of the {building.totalUnits ?? residents.length} apartments at {building.name} gets a
           one cubic metre hard-waste entitlement per financial year. By pooling
           against a single shared collection day, items get to the kerbside
           properly — no illegal dumping, no wasted entitlements.

@@ -33,21 +33,9 @@ export function NewListing() {
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<PbCategory>('give')
   const [imageFile, setImageFile] = useState<File | null>(null)
-  const [towers, setTowers] = useState<PbTower[]>([])
   const [towerId, setTowerId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    pbGetTowers()
-      .then((ts) => {
-        setTowers(ts)
-        if (ts.length > 0) setTowerId(ts[0].id)
-      })
-      .catch(() => {
-        // Backend not running — tower picker stays empty, form falls back to local state.
-      })
-  }, [])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -146,23 +134,6 @@ export function NewListing() {
                 ))}
               </Select>
             </div>
-
-            {towers.length > 1 && (
-              <div className="space-y-1.5">
-                <Label htmlFor="tower">Building / tower</Label>
-                <Select
-                  id="tower"
-                  value={towerId}
-                  onChange={(e) => setTowerId(e.target.value)}
-                >
-                  {towers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="photo">Photo (optional)</Label>

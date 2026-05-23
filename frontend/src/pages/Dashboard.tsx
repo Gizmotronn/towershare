@@ -134,7 +134,7 @@ export function Dashboard() {
         <StatTile
           icon={<Recycle className="h-4 w-4" />}
           label="Active residents"
-          value={`${building.totalUnits}`}
+          value={`${building.totalUnits ?? '—'}`}
         />
       </div>
 

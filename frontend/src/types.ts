@@ -59,7 +59,7 @@ export type Building = {
   id: string
   name: string
   address: string
-  totalUnits: number
+  totalUnits?: number // not in the backend towers schema; provided by seed fallback
 }
 
 export const CATEGORY_LABEL: Record<ItemCategory, string> = {
