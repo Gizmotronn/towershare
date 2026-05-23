@@ -7,8 +7,10 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 
-	// Register your modules here:
-	_ "github.com/gizmotronn/towershare/pb_modules/example_module"
+	// Ensure migration init() funcs run.
+	_ "github.com/gizmotronn/towershare/pb_migrations"
+
+	"github.com/gizmotronn/towershare/pb_modules/example_module"
 )
 
 func main() {
@@ -18,6 +20,9 @@ func main() {
 	migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
 		Automigrate: isDevMode(),
 	})
+
+	// Register modules.
+	example_module.Register(app)
 
 	if err := app.Start(); err != nil {
 		log.Fatal(err)
