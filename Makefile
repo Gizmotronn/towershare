@@ -38,8 +38,10 @@ shell:
 
 # Upsert superadmin (uses PB_ADMIN_EMAIL / PB_ADMIN_PASS vars above)
 pb-admin:
-	docker compose exec pocketbase /pb/pocketbase superuser upsert \
-		$(PB_ADMIN_EMAIL) $(PB_ADMIN_PASS)
+	docker compose exec pocketbase /pb/pocketbase admin create \
+		$(PB_ADMIN_EMAIL) $(PB_ADMIN_PASS) --dir=/pb/pb_data || \
+	docker compose exec pocketbase /pb/pocketbase admin update \
+		$(PB_ADMIN_EMAIL) $(PB_ADMIN_PASS) --dir=/pb/pb_data
 
 # ── local dev (no Docker) ─────────────────────────────────────────────────────
 

@@ -50,10 +50,11 @@ cmd_shell() {
 }
 
 cmd_pb_admin() {
-    # Create or reset the superadmin account inside the container
     email="${1:?Usage: knowns.sh pb-admin <email> <password>}"
     pass="${2:?Usage: knowns.sh pb-admin <email> <password>}"
-    docker compose exec pocketbase /pb/pocketbase superuser upsert "$email" "$pass"
+    # Try create first; fall back to update if the account already exists.
+    docker compose exec pocketbase /pb/pocketbase admin create "$email" "$pass" --dir=/pb/pb_data 2>/dev/null || \
+    docker compose exec pocketbase /pb/pocketbase admin update "$email" "$pass" --dir=/pb/pb_data
 }
 
 cmd_note() {
