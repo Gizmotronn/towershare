@@ -1,4 +1,4 @@
-.PHONY: up down logs rebuild migrate shell pb-admin dev-backend dev status clean help
+.PHONY: up up-dev down logs rebuild migrate shell pb-admin dev dev-backend dev-frontend status clean help
 
 # ── config ────────────────────────────────────────────────────────────────────
 PB_ADMIN_EMAIL ?= admin@towershare.local
@@ -12,13 +12,23 @@ up: .env
 	@echo ""
 	@echo "  PocketBase admin → http://localhost:8090/_/"
 	@echo "  API              → http://localhost:8090/api/"
+	@echo "  (frontend served from /pb/pb_public via PocketBase)"
+	@echo ""
+
+# Start everything including the Vite dev server (hot-reload frontend)
+up-dev: .env
+	docker compose --profile dev up -d
+	@echo ""
+	@echo "  Frontend (Vite) → http://localhost:5173"
+	@echo "  PocketBase admin → http://localhost:8090/_/"
+	@echo "  API              → http://localhost:8090/api/"
 	@echo ""
 
 # Tear down containers (keeps volumes)
 down:
 	docker compose down
 
-# Rebuild the pocketbase image after Go changes, then restart
+# Rebuild image (frontend + backend) after any changes, then restart
 rebuild:
 	docker compose build --no-cache pocketbase
 	docker compose up -d pocketbase
@@ -45,9 +55,17 @@ pb-admin:
 
 # ── local dev (no Docker) ─────────────────────────────────────────────────────
 
+# Run both PocketBase and Vite dev server concurrently (requires Go 1.22+ and Node)
+dev:
+	make -j2 dev-backend dev-frontend
+
 # Run PocketBase directly on the host (faster iteration; requires Go 1.22+)
 dev-backend:
 	cd backend && go run . serve --http=0.0.0.0:8090
+
+# Run Vite dev server (proxies /api and /_ to PocketBase on :8090)
+dev-frontend:
+	cd frontend && yarn dev
 
 # Open the browser chat simulator (requires PocketBase running)
 chat:
@@ -84,14 +102,17 @@ clean:
 # ── help ──────────────────────────────────────────────────────────────────────
 help:
 	@echo ""
-	@echo "  make up             Boot all services (creates .env if missing)"
+	@echo "  make up             Boot PocketBase + Caddy (frontend served from built assets)"
+	@echo "  make up-dev         Boot all services incl. Vite dev server (hot-reload)"
 	@echo "  make down           Stop services"
-	@echo "  make rebuild        Rebuild backend image after Go changes"
+	@echo "  make rebuild        Rebuild full image (frontend + backend) after any changes"
 	@echo "  make logs           Tail all logs  (svc=pocketbase for one service)"
 	@echo "  make migrate        Run pending DB migrations"
 	@echo "  make shell          Shell into pocketbase container"
 	@echo "  make pb-admin       Upsert demo superadmin"
+	@echo "  make dev            Run PocketBase + Vite locally (no Docker)"
 	@echo "  make dev-backend    Run PocketBase directly (no Docker)"
+	@echo "  make dev-frontend   Run Vite dev server only"
 	@echo "  make chat           Open local chat simulator in browser"
 	@echo "  make send MSG=...   Send a test bot message via curl"
 	@echo "  make status         Show container status"
