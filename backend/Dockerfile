@@ -1,7 +1,7 @@
 # ── Stage 1: Build React frontend ─────────────────────────────────────────────
 FROM node:20-alpine AS frontend-builder
 
-RUN corepack enable && corepack prepare yarn@stable --activate
+RUN corepack enable && corepack prepare yarn@1.22.22 --activate
 
 WORKDIR /frontend
 COPY frontend/package.json frontend/yarn.lock ./
