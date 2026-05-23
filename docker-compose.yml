@@ -1,0 +1,43 @@
+services:
+  pocketbase:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: towershare-pb
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      - pb_data:/pb/pb_data
+      - ./backend/pb_migrations:/pb/pb_migrations
+      - ./backend/pb_hooks:/pb/pb_hooks
+      - ./backend/pb_modules:/pb/pb_modules
+    environment:
+      - PB_ENCRYPTION_KEY=${PB_ENCRYPTION_KEY:-}
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8090/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Caddy reverse proxy — useful for local HTTPS (Swift ATS requires TLS)
+  caddy:
+    image: caddy:2-alpine
+    container_name: towershare-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+
+volumes:
+  pb_data:
+  caddy_data:
+  caddy_config:

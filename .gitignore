@@ -1,0 +1,7 @@
+.env
+backend/pb_data/
+backend/pocketbase
+.knowns/
+*.xcuserstate
+xcuserdata/
+.DS_Store

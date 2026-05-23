@@ -1,0 +1,12 @@
+towershare.localhost {
+    reverse_proxy pocketbase:8090
+}
+
+# For production, replace the domain and remove tls internal:
+# api.towershare.app {
+#     reverse_proxy pocketbase:8090
+# }
+
+:80 {
+    reverse_proxy pocketbase:8090
+}
