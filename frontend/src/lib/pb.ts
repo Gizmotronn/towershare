@@ -1,3 +1,5 @@
+import type { FurnitureListing, ItemCategory, ListingStatus } from '../types'
+
 const PB_URL = (import.meta.env.VITE_PB_URL as string | undefined) ?? 'http://localhost:8090'
 
 export type PbUser = {
@@ -18,8 +20,8 @@ export type PbListing = {
   description: string
   category: string
   status: string
-  estimated_m3: number
-  pickup_by: string
+  estimated_m3?: number
+  pickup_by?: string
   owner: string
   tower: string
   images: string[]
@@ -79,6 +81,55 @@ export async function pbGetTowers(): Promise<PbTower[]> {
   if (!res.ok) throw new Error('Failed to fetch towers')
   const data = (await res.json()) as { items: PbTower[] }
   return data.items ?? []
+}
+
+export type PbListingExpanded = PbListing & {
+  expand?: { owner?: PbUser }
+}
+
+export function pbFileUrl(collectionId: string, recordId: string, filename: string): string {
+  return `${PB_URL}/api/files/${collectionId}/${recordId}/${filename}`
+}
+
+export async function pbGetListings(): Promise<PbListingExpanded[]> {
+  const res = await fetch(
+    `${PB_URL}/api/collections/listings/records?sort=-created&perPage=100&expand=owner`,
+    { headers: authHeader() },
+  )
+  if (!res.ok) throw new Error('Failed to fetch listings')
+  const data = (await res.json()) as { items: PbListingExpanded[] }
+  return data.items ?? []
+}
+
+const STATUS_MAP: Record<string, ListingStatus> = {
+  active: 'available',
+  claimed: 'claimed',
+  closed: 'collected',
+  available: 'available',
+  collected: 'collected',
+}
+
+const VALID_CATEGORIES: ItemCategory[] = ['furniture', 'whitegoods', 'ewaste', 'mattress']
+
+export function pbToFurnitureListing(pb: PbListingExpanded): FurnitureListing {
+  const imageUrl = pb.images?.length
+    ? pbFileUrl(pb.collectionId, pb.id, pb.images[0])
+    : `https://picsum.photos/seed/${encodeURIComponent(pb.title.toLowerCase().replace(/\s+/g, '-'))}/600/400`
+
+  return {
+    id: pb.id,
+    postedById: pb.owner,
+    title: pb.title,
+    description: pb.description ?? '',
+    photoUrl: imageUrl,
+    category: VALID_CATEGORIES.includes(pb.category as ItemCategory)
+      ? (pb.category as ItemCategory)
+      : 'furniture',
+    estimatedM3: pb.estimated_m3 ?? 0,
+    pickupBy: pb.pickup_by ?? '',
+    status: STATUS_MAP[pb.status] ?? 'available',
+    createdAt: pb.created,
+  }
 }
 
 export async function pbCreateListing(body: FormData): Promise<PbListing> {

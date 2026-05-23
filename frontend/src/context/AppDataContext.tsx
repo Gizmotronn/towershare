@@ -25,7 +25,7 @@ import {
   SHARES,
 } from '../lib/seed'
 import { uid } from '../lib/utils'
-import { pbGetTowers } from '../lib/pb'
+import { pbGetListings, pbGetTowers, pbToFurnitureListing } from '../lib/pb'
 import { useAuth } from './AuthContext'
 
 type NewListingInput = {
@@ -68,7 +68,7 @@ type AppData = {
 const AppDataContext = createContext<AppData | null>(null)
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
-  const { currentUserId } = useAuth()
+  const { currentUserId, pbUser } = useAuth()
   const [building, setBuilding] = useState<Building>(BUILDING)
   const [residents, setResidents] = useState<Resident[]>(RESIDENTS)
 
@@ -85,7 +85,25 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {/* backend not running — keep seed building */})
   }, [])
+
   const [listings, setListings] = useState<FurnitureListing[]>(LISTINGS)
+  const [pbOwnerNames, setPbOwnerNames] = useState<Map<string, string>>(new Map())
+
+  useEffect(() => {
+    if (!pbUser) return
+    pbGetListings()
+      .then((items) => {
+        const ownerMap = new Map<string, string>()
+        for (const item of items) {
+          if (item.expand?.owner) {
+            ownerMap.set(item.expand.owner.id, item.expand.owner.display_name)
+          }
+        }
+        setPbOwnerNames(ownerMap)
+        setListings(items.map(pbToFurnitureListing))
+      })
+      .catch(() => {})
+  }, [pbUser])
   const [shares, setShares] = useState<EntitlementShare[]>(SHARES)
   const [collectionDay] = useState<CollectionDay>(COLLECTION_DAY)
   const [collectionItems, setCollectionItems] =
@@ -97,8 +115,22 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   )
 
   const getResident = useCallback(
-    (id: string | undefined) => residents.find((r) => r.id === id),
-    [residents],
+    (id: string | undefined): Resident | undefined => {
+      const resident = residents.find((r) => r.id === id)
+      if (resident) return resident
+      if (id && pbOwnerNames.has(id)) {
+        return {
+          id,
+          name: pbOwnerNames.get(id)!,
+          aptNumber: '',
+          email: '',
+          entitlementRemainingM3: 0,
+          entitlementYear: '',
+        }
+      }
+      return undefined
+    },
+    [residents, pbOwnerNames],
   )
 
   const adjustEntitlement = useCallback(
