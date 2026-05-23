@@ -1,33 +1,36 @@
 package migrations
 
 import (
-	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase/daos"
 	m "github.com/pocketbase/pocketbase/migrations"
+	"github.com/pocketbase/pocketbase/models/schema"
 )
 
 func init() {
-	m.Register(func(app core.App) error {
-		// The `users` collection is created automatically by PocketBase.
-		// Add any extra fields or custom collections here.
-		// Example: extend users with a display_name field.
-		users, err := app.FindCollectionByNameOrId("users")
+	m.Register(func(db dbx.Builder) error {
+		dao := daos.New(db)
+		users, err := dao.FindCollectionByNameOrId("users")
 		if err != nil {
 			return err
 		}
-
-		users.Fields.Add(&core.TextField{
+		users.Schema.AddField(&schema.SchemaField{
 			Name:     "display_name",
+			Type:     schema.FieldTypeText,
 			Required: false,
 		})
-
-		return app.Save(users)
-	}, func(app core.App) error {
-		// Down migration: remove the display_name field.
-		users, err := app.FindCollectionByNameOrId("users")
+		return dao.SaveCollection(users)
+	}, func(db dbx.Builder) error {
+		dao := daos.New(db)
+		users, err := dao.FindCollectionByNameOrId("users")
 		if err != nil {
 			return err
 		}
-		users.Fields.RemoveById(users.Fields.GetByName("display_name").GetId())
-		return app.Save(users)
+		field := users.Schema.GetFieldByName("display_name")
+		if field != nil {
+			users.Schema.RemoveField(field.Id)
+			return dao.SaveCollection(users)
+		}
+		return nil
 	})
 }

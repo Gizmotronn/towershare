@@ -2,6 +2,11 @@
 backend/pb_data/
 backend/pocketbase
 .knowns/
+
+# Swift / Xcode build artifacts
+frontend/TowerShare/.build/
 *.xcuserstate
 xcuserdata/
+*.o
+*.d
 .DS_Store
