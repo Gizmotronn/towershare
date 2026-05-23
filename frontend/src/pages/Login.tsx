@@ -24,10 +24,10 @@ export function Login() {
     if (currentUserId) navigate('/dashboard', { replace: true })
   }, [currentUserId, navigate])
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
-    const ok = login(email)
+    const ok = await login(email, password)
     if (!ok) {
       setError(
         'No resident found with that email. Try the demo login below to switch personas.',

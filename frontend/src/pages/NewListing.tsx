@@ -1,13 +1,14 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, Info } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useAppData } from '../context/AppDataContext'
-import { CATEGORY_LABEL, type ItemCategory } from '../types'
+import { useAuth } from '../context/AuthContext'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Select } from '../components/ui/Select'
+import { pbGetTowers, pbCreateListing, type PbTower } from '../lib/pb'
 import {
   Card,
   CardContent,
@@ -16,61 +17,82 @@ import {
   CardTitle,
 } from '../components/ui/Card'
 
-const photoFor = (title: string) =>
-  `https://picsum.photos/seed/${encodeURIComponent(title.toLowerCase().replace(/\s+/g, '-') || 'furniture')}/600/400`
+type PbCategory = 'give' | 'lend' | 'request'
 
-const RESTRICTIONS: Partial<Record<ItemCategory, { tone: 'warn' | 'info'; text: string }[]>> = {
-  ewaste: [
-    {
-      tone: 'warn',
-      text: 'Council rule: remove lithium batteries from e-waste before collection.',
-    },
-  ],
-  whitegoods: [
-    {
-      tone: 'warn',
-      text: 'Council rule: remove washing-machine doors before kerbside placement.',
-    },
-    {
-      tone: 'info',
-      text: 'White goods only accepted whole — no parts (e.g. drums, motors).',
-    },
-  ],
-  mattress: [
-    {
-      tone: 'info',
-      text: 'Tip: keep mattresses dry — place out the day before, not earlier.',
-    },
-  ],
-  furniture: [],
+const CATEGORY_LABEL: Record<PbCategory, string> = {
+  give:    'Give away (free)',
+  lend:    'Lend (borrow & return)',
+  request: 'Request (looking for)',
 }
 
 export function NewListing() {
   const navigate = useNavigate()
   const { createListing } = useAppData()
+  const { pbUser } = useAuth()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [photoUrl, setPhotoUrl] = useState('')
-  const [category, setCategory] = useState<ItemCategory>('furniture')
-  const [estimatedM3, setEstimatedM3] = useState('0.3')
-  const [pickupBy, setPickupBy] = useState(
-    new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
-  )
+  const [category, setCategory] = useState<PbCategory>('give')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [towers, setTowers] = useState<PbTower[]>([])
+  const [towerId, setTowerId] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = (e: FormEvent) => {
+  useEffect(() => {
+    pbGetTowers()
+      .then((ts) => {
+        setTowers(ts)
+        if (ts.length > 0) setTowerId(ts[0].id)
+      })
+      .catch(() => {
+        // Backend not running — tower picker stays empty, form falls back to local state.
+      })
+  }, [])
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    setError(null)
+
+    if (pbUser) {
+      if (!towerId) {
+        setError('No tower found. Is the backend running?')
+        return
+      }
+      setSubmitting(true)
+      try {
+        const fd = new FormData()
+        fd.append('title', title.trim())
+        fd.append('description', description.trim())
+        fd.append('category', category)
+        fd.append('status', 'active')
+        fd.append('owner', pbUser.id)
+        fd.append('tower', towerId)
+        if (imageFile) fd.append('images', imageFile)
+        await pbCreateListing(fd)
+        navigate('/marketplace')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to create listing')
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
+
+    // No PocketBase session — write to local (demo) state only.
+    const photoUrl = imageFile
+      ? URL.createObjectURL(imageFile)
+      : `https://picsum.photos/seed/${encodeURIComponent(title.toLowerCase().replace(/\s+/g, '-') || 'item')}/600/400`
+
     const id = createListing({
       title: title.trim(),
       description: description.trim(),
-      photoUrl: photoUrl.trim() || photoFor(title),
-      category,
-      estimatedM3: parseFloat(estimatedM3) || 0,
-      pickupBy: new Date(pickupBy).toISOString(),
+      photoUrl,
+      category: 'furniture', // local seed uses item-type categories; default to furniture
+      estimatedM3: 0.3,
+      pickupBy: new Date(Date.now() + 14 * 86400000).toISOString(),
     })
     if (id) navigate(`/listings/${id}`)
   }
-
-  const reminders = RESTRICTIONS[category] ?? []
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -111,85 +133,58 @@ export function NewListing() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="category">Category</Label>
+              <Label htmlFor="category">Listing type</Label>
               <Select
                 id="category"
                 value={category}
-                onChange={(e) => setCategory(e.target.value as ItemCategory)}
+                onChange={(e) => setCategory(e.target.value as PbCategory)}
               >
-                <option value="furniture">{CATEGORY_LABEL.furniture}</option>
-                <option value="whitegoods">{CATEGORY_LABEL.whitegoods}</option>
-                <option value="ewaste">{CATEGORY_LABEL.ewaste}</option>
-                <option value="mattress">{CATEGORY_LABEL.mattress}</option>
+                {(Object.keys(CATEGORY_LABEL) as PbCategory[]).map((k) => (
+                  <option key={k} value={k}>
+                    {CATEGORY_LABEL[k]}
+                  </option>
+                ))}
               </Select>
-              <p className="text-xs text-slate-500">
-                Matches the four categories the City of Melbourne accepts at
-                kerbside.
-              </p>
             </div>
 
-            {reminders.length > 0 && (
-              <div className="space-y-2">
-                {reminders.map((r, i) => (
-                  <div
-                    key={i}
-                    className={
-                      r.tone === 'warn'
-                        ? 'flex items-start gap-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-900'
-                        : 'flex items-start gap-2 rounded-md bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-700'
-                    }
-                  >
-                    {r.tone === 'warn' ? (
-                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                    ) : (
-                      <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                    )}
-                    <span>{r.text}</span>
-                  </div>
-                ))}
+            {towers.length > 1 && (
+              <div className="space-y-1.5">
+                <Label htmlFor="tower">Building / tower</Label>
+                <Select
+                  id="tower"
+                  value={towerId}
+                  onChange={(e) => setTowerId(e.target.value)}
+                >
+                  {towers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </Select>
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="m3">Estimated size (m³)</Label>
-                <Input
-                  id="m3"
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  max="1"
-                  required
-                  value={estimatedM3}
-                  onChange={(e) => setEstimatedM3(e.target.value)}
-                />
-                <p className="text-xs text-slate-500">
-                  Approximate volume if it ended up at the kerbside.
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="pickup">Available until</Label>
-                <Input
-                  id="pickup"
-                  type="date"
-                  required
-                  value={pickupBy}
-                  onChange={(e) => setPickupBy(e.target.value)}
-                />
-              </div>
-            </div>
             <div className="space-y-1.5">
-              <Label htmlFor="photo">Photo URL (optional)</Label>
-              <Input
+              <Label htmlFor="photo">Photo (optional)</Label>
+              <input
                 id="photo"
-                placeholder="Leave blank to use a placeholder image"
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="block w-full text-sm text-slate-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
               />
+              <p className="text-xs text-slate-500">JPEG, PNG, WebP or GIF · max 5 MB</p>
             </div>
+
+            {error && (
+              <p className="text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-md px-3 py-2">
+                {error}
+              </p>
+            )}
+
             <div className="flex gap-2 pt-2">
-              <Button type="submit" size="md">
-                Post item
+              <Button type="submit" size="md" disabled={submitting}>
+                {submitting ? 'Posting…' : 'Post item'}
               </Button>
               <Link
                 to="/marketplace"
