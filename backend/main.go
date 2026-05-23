@@ -13,6 +13,7 @@ import (
 	"github.com/gizmotronn/towershare/pb_modules/example_module"
 	"github.com/gizmotronn/towershare/pb_modules/messaging"
 	"github.com/gizmotronn/towershare/pb_modules/simulator"
+	"github.com/gizmotronn/towershare/pb_modules/ui"
 )
 
 func main() {
@@ -26,6 +27,7 @@ func main() {
 	// Register modules.
 	example_module.Register(app)
 	messaging.Register(app)
+	ui.Register(app)
 	if isDevMode() {
 		simulator.Register(app)
 	}
