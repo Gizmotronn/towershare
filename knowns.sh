@@ -155,7 +155,7 @@ cmd_send_message() {
 }
 
 cmd_chat() {
-    open local-dev/chat-simulator.html 2>/dev/null || xdg-open local-dev/chat-simulator.html
+    open http://localhost:8090/simulator 2>/dev/null || xdg-open http://localhost:8090/simulator
 }
 
 cmd_new_module() {

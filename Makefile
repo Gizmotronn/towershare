@@ -49,9 +49,9 @@ pb-admin:
 dev-backend:
 	cd backend && go run . serve --http=0.0.0.0:8090
 
-# Open the local chat simulator in your browser (no accounts needed)
+# Open the chat simulator (served by PocketBase at /simulator)
 chat:
-	open local-dev/chat-simulator.html 2>/dev/null || xdg-open local-dev/chat-simulator.html
+	open http://localhost:8090/simulator 2>/dev/null || xdg-open http://localhost:8090/simulator
 
 # Quick curl to send a bot message from the terminal
 # Usage: make send MSG="towers"
