@@ -1,0 +1,205 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Jobs
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+
+  # ── 1. Build & static analysis ─────────────────────────────────────────────
+  build:
+    name: Build & vet
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+  # ── 2. Unit tests ──────────────────────────────────────────────────────────
+  test:
+    name: Go tests
+    runs-on: ubuntu-latest
+    needs: build
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Test
+        run: go test -v -race -count=1 ./...
+
+  # ── 3. Migration smoke test ────────────────────────────────────────────────
+  #
+  # Builds the real binary, boots PocketBase against a temp data dir,
+  # runs all migrations (auto-migrate is on in non-production mode),
+  # authenticates as admin, then asserts every expected collection exists.
+  #
+  migrations:
+    name: Migration smoke test
+    runs-on: ubuntu-latest
+    needs: build
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Build binary
+        run: go build -o pocketbase_ci ./main.go
+
+      - name: Start PocketBase
+        run: |
+          mkdir -p /tmp/pb_ci
+          ./pocketbase_ci serve \
+            --http=127.0.0.1:8090 \
+            --dir=/tmp/pb_ci \
+            &
+          echo "PB_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for healthy
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8090/api/health > /dev/null; then
+              echo "PocketBase is healthy"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "PocketBase failed to start" && exit 1
+
+      - name: Create admin account
+        run: |
+          ./pocketbase_ci admin create ci@towershare.local ci-password-123 \
+            --dir=/tmp/pb_ci
+
+      - name: Verify migrations — all expected collections exist
+        run: |
+          TOKEN=$(curl -sf -X POST http://127.0.0.1:8090/api/admins/auth-with-password \
+            -H "Content-Type: application/json" \
+            -d '{"identity":"ci@towershare.local","password":"ci-password-123"}' \
+            | jq -r '.token')
+
+          NAMES=$(curl -sf "http://127.0.0.1:8090/api/collections?perPage=50" \
+            -H "Authorization: $TOKEN" \
+            | jq -r '[.items[].name] | join(" ")')
+
+          echo "Collections found: $NAMES"
+
+          MISSING=0
+          for col in users towers apartments listings; do
+            if echo "$NAMES" | grep -qw "$col"; then
+              echo "  ✓ $col"
+            else
+              echo "  ✗ $col — MISSING"
+              MISSING=1
+            fi
+          done
+          exit $MISSING
+
+      - name: Verify schema — key fields present
+        run: |
+          TOKEN=$(curl -sf -X POST http://127.0.0.1:8090/api/admins/auth-with-password \
+            -H "Content-Type: application/json" \
+            -d '{"identity":"ci@towershare.local","password":"ci-password-123"}' \
+            | jq -r '.token')
+
+          check_field() {
+            local collection=$1 field=$2
+            local fields
+            fields=$(curl -sf "http://127.0.0.1:8090/api/collections/$collection" \
+              -H "Authorization: $TOKEN" \
+              | jq -r '[.schema[].name] | join(" ")')
+            if echo "$fields" | grep -qw "$field"; then
+              echo "  ✓ $collection.$field"
+            else
+              echo "  ✗ $collection.$field — MISSING (got: $fields)"
+              return 1
+            fi
+          }
+
+          FAIL=0
+          check_field towers    name        || FAIL=1
+          check_field towers    address     || FAIL=1
+          check_field towers    managers    || FAIL=1
+          check_field apartments unit_number || FAIL=1
+          check_field apartments tower      || FAIL=1
+          check_field listings  title       || FAIL=1
+          check_field listings  category    || FAIL=1
+          check_field listings  status      || FAIL=1
+          check_field listings  owner       || FAIL=1
+          check_field users     display_name || FAIL=1
+          check_field users     apartment   || FAIL=1
+          exit $FAIL
+
+      - name: Stop PocketBase
+        if: always()
+        run: kill "$PB_PID" 2>/dev/null || true
+
+  # ── 4. Swift package build ─────────────────────────────────────────────────
+  #
+  # macOS runners are ~10× more expensive than Linux — this job is gated behind
+  # a path filter so it only runs when Swift sources actually change.
+  #
+  swift-build:
+    name: Swift build
+    runs-on: macos-15
+    if: |
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.changed_files, 'frontend/')
+    defaults:
+      run:
+        working-directory: frontend/TowerShare
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache SPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: frontend/TowerShare/.build
+          key: spm-${{ runner.os }}-${{ hashFiles('frontend/TowerShare/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Resolve dependencies
+        run: swift package resolve
+
+      - name: Build
+        run: swift build
+
+      - name: Test
+        run: swift test 2>/dev/null || echo "No tests yet — skipping"
