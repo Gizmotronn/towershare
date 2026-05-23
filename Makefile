@@ -49,6 +49,17 @@ pb-admin:
 dev-backend:
 	cd backend && go run . serve --http=0.0.0.0:8090
 
+# Open the local chat simulator in your browser (no accounts needed)
+chat:
+	open local-dev/chat-simulator.html 2>/dev/null || xdg-open local-dev/chat-simulator.html
+
+# Quick curl to send a bot message from the terminal
+# Usage: make send MSG="towers"
+send:
+	@curl -s -X POST http://localhost:8090/api/towershare/message \
+		-H "Content-Type: application/json" \
+		-d "{\"from\":\"+61400000001\",\"body\":\"$(MSG)\"}" | python3 -m json.tool
+
 # ── project state ─────────────────────────────────────────────────────────────
 
 status:
@@ -77,6 +88,8 @@ help:
 	@echo "  make shell          Shell into pocketbase container"
 	@echo "  make pb-admin       Upsert demo superadmin"
 	@echo "  make dev-backend    Run PocketBase directly (no Docker)"
+	@echo "  make chat           Open local chat simulator in browser"
+	@echo "  make send MSG=...   Send a test bot message via curl"
 	@echo "  make status         Show container status"
 	@echo "  make clean          Stop + delete volumes (destructive!)"
 	@echo ""

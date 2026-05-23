@@ -11,6 +11,7 @@ import (
 	_ "github.com/gizmotronn/towershare/pb_migrations"
 
 	"github.com/gizmotronn/towershare/pb_modules/example_module"
+	"github.com/gizmotronn/towershare/pb_modules/messaging"
 )
 
 func main() {
@@ -23,6 +24,7 @@ func main() {
 
 	// Register modules.
 	example_module.Register(app)
+	messaging.Register(app)
 
 	if err := app.Start(); err != nil {
 		log.Fatal(err)

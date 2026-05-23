@@ -147,6 +147,17 @@ cmd_env_check() {
     [[ $warn -eq 0 ]] && echo -e "${GREEN}All env vars present.${NC}"
 }
 
+cmd_send_message() {
+    msg="${*:?Usage: knowns.sh send-message <text>}"
+    curl -s -X POST http://localhost:8090/api/towershare/message \
+        -H "Content-Type: application/json" \
+        -d "{\"from\":\"+61400000001\",\"body\":\"$msg\"}" | python3 -m json.tool
+}
+
+cmd_chat() {
+    open local-dev/chat-simulator.html 2>/dev/null || xdg-open local-dev/chat-simulator.html
+}
+
 cmd_new_module() {
     name="${1:?Usage: knowns.sh new-module <module_name>}"
     slug="$(_slug "$name")"
@@ -222,6 +233,8 @@ case "$cmd" in
     decisions)     cmd_decisions ;;
     task)          cmd_task "$@" ;;
     status)        cmd_status ;;
+    send-message)  cmd_send_message "$@" ;;
+    chat)          cmd_chat ;;
     new-module)    cmd_new_module "$@" ;;
     env-check)     cmd_env_check ;;
     help|--help|-h) cmd_help ;;
